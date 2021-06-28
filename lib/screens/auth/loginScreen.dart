@@ -1,5 +1,7 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:phone_auth_test/main.dart';
+import 'package:phone_auth_test/screens/auth/phoneVerify.dart';
 import 'package:phone_auth_test/screens/auth/signupScreen.dart';
 import 'package:phone_auth_test/screens/home/homeScreen.dart';
 import 'package:phone_auth_test/services/authenticationServices.dart';
@@ -16,12 +18,21 @@ class _LoginScreenState extends State<LoginScreen> {
   final _formKey = new GlobalKey<FormState>();
 
   final AuthenticationServices _auth = AuthenticationServices();
+  final FirebaseAuth _fAuth = FirebaseAuth.instance;
 
   @override
   void dispose() {
     emailController.dispose();
     passwordController.dispose();
     super.dispose();
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    if (_fAuth.currentUser != null) {
+      print("User is present");
+    }
   }
 
   @override
@@ -199,6 +210,46 @@ class _LoginScreenState extends State<LoginScreen> {
                                   "NOT A USER? SIGN UP",
                                   style: TextStyle(
                                       color: AppColor.white, fontSize: 16),
+                                ),
+                              ),
+                            ),
+                            Padding(
+                              padding:
+                                  const EdgeInsets.only(left: 55, right: 55),
+                              child: Container(
+                                child: Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: <Widget>[
+                                    Expanded(
+                                      child: Material(
+                                        elevation: 2,
+                                        color: AppColor.light,
+                                        borderRadius: BorderRadius.all(
+                                            Radius.circular(5)),
+                                        child: InkWell(
+                                          highlightColor: Colors.transparent,
+                                          borderRadius: BorderRadius.all(
+                                              Radius.circular(5)),
+                                          onTap: () {
+                                            Utilities.openActivity(
+                                                context, PhoneVerify());
+                                          },
+                                          child: Container(
+                                            height: 48,
+                                            child: Center(
+                                              child: Text(
+                                                "Phone Signup".toUpperCase(),
+                                                style: TextStyle(
+                                                  color: AppColor.dark,
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ),
                             ),

@@ -1,30 +1,33 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:phone_auth_test/main.dart';
-import 'package:phone_auth_test/screens/auth/enterPhoneOTP.dart';
+import 'package:phone_auth_test/screens/auth/phoneVerify.dart';
+import 'package:phone_auth_test/screens/auth/signupScreen.dart';
+import 'package:phone_auth_test/screens/home/homeScreen.dart';
+import 'package:phone_auth_test/services/authenticationServices.dart';
 import 'package:phone_auth_test/utilities.dart';
 
-final FirebaseAuth auth = FirebaseAuth.instance;
-final FirebaseFirestore firestore = FirebaseFirestore.instance;
-String verificationCode = "";
+class EnterPhoneOTP extends StatefulWidget {
+  final String verificationCode;
 
-class PhoneVerify extends StatefulWidget {
+  const EnterPhoneOTP({Key? key, required this.verificationCode})
+      : super(key: key);
   @override
-  _PhoneVerifyState createState() => _PhoneVerifyState();
+  _EnterPhoneOTPState createState() => _EnterPhoneOTPState();
 }
 
-class _PhoneVerifyState extends State<PhoneVerify> {
-  TextEditingController phoneController = TextEditingController();
-  TextEditingController nameController = TextEditingController();
+class _EnterPhoneOTPState extends State<EnterPhoneOTP> {
+  TextEditingController otpController = TextEditingController();
 
   final _formKey = new GlobalKey<FormState>();
 
   // final AuthenticationServices _auth = AuthenticationServices();
+
+  // final FirebaseAuth _auth = FirebaseAuth.instance;
+
   @override
   void dispose() {
-    nameController.dispose();
-    phoneController.dispose();
+    otpController.dispose();
     super.dispose();
   }
 
@@ -58,55 +61,11 @@ class _PhoneVerifyState extends State<PhoneVerify> {
                                   const EdgeInsets.only(left: 12, right: 12),
                               child: Container(
                                 child: TextFormField(
-                                  controller: nameController,
-                                  keyboardType: TextInputType.text,
-                                  validator: (String? value) {
-                                    if (value!.isEmpty) {
-                                      return "Name value cannot be empty";
-                                    }
-                                    return null;
-                                  },
-                                  style: TextStyle(
-                                      fontSize: 16, color: AppColor.primary),
-                                  decoration: const InputDecoration(
-                                    hintText: 'What do people call you?',
-                                    labelStyle: TextStyle(
-                                      color: AppColor.white,
-                                    ),
-                                    hintStyle: TextStyle(
-                                      color: AppColor.muted,
-                                    ),
-                                    labelText: 'Name',
-                                    focusedBorder: OutlineInputBorder(
-                                        borderSide: BorderSide(
-                                            color: AppColor.primary)),
-                                    enabledBorder: OutlineInputBorder(
-                                        borderSide: BorderSide(
-                                            color: AppColor.primary)),
-                                    disabledBorder: OutlineInputBorder(
-                                        borderSide:
-                                            BorderSide(color: AppColor.muted)),
-                                    border: OutlineInputBorder(
-                                        borderSide: BorderSide(
-                                            color: AppColor.primary)),
-                                    errorBorder: OutlineInputBorder(
-                                        borderSide:
-                                            BorderSide(color: AppColor.danger)),
-                                  ),
-                                ),
-                              ),
-                            ),
-                            SizedBox(height: 12),
-                            Padding(
-                              padding:
-                                  const EdgeInsets.only(left: 12, right: 12),
-                              child: Container(
-                                child: TextFormField(
-                                  controller: phoneController,
+                                  controller: otpController,
                                   keyboardType: TextInputType.phone,
                                   validator: (String? value) {
                                     if (value!.isEmpty) {
-                                      return "Phone field cannot be empty";
+                                      return "OTP field cannot be empty";
                                     }
                                     return null;
                                   },
@@ -120,7 +79,7 @@ class _PhoneVerifyState extends State<PhoneVerify> {
                                     hintStyle: TextStyle(
                                       color: AppColor.muted,
                                     ),
-                                    labelText: 'Phone',
+                                    labelText: 'OTP',
                                     focusedBorder: OutlineInputBorder(
                                         borderSide: BorderSide(
                                             color: AppColor.primary)),
@@ -160,7 +119,23 @@ class _PhoneVerifyState extends State<PhoneVerify> {
                                           borderRadius: BorderRadius.all(
                                               Radius.circular(5)),
                                           onTap: () {
-                                            validator();
+                                            dynamic authResult =
+                                                auth.signInWithCredential(
+                                                    PhoneAuthProvider.credential(
+                                                        verificationId:
+                                                            verificationCode,
+                                                        smsCode: otpController
+                                                            .text
+                                                            .toString()));
+
+                                            if (authResult == null) {
+                                              print("Sign in error");
+                                            } else {
+                                              clearController();
+                                              print("Sign in successful");
+                                              Utilities.openActivity(
+                                                  context, HomeScreen());
+                                            }
                                           },
                                           child: Container(
                                             height: 48,
@@ -199,68 +174,13 @@ class _PhoneVerifyState extends State<PhoneVerify> {
     if (form!.validate()) {
       print("validated");
       FocusScope.of(context).requestFocus(FocusNode());
-      _phoneVerify();
+      signInUser();
     }
   }
 
-  Future<void> _phoneVerify() async {
-    String _phoneNumber = '+977 ${phoneController.text.trim()}';
-
-    phoneVerify(phone: _phoneNumber, name: nameController.text.trim());
-  }
-
-  Future? phoneVerify({required String phone, required String name}) async {
-    var verifyPhonenumber = auth.verifyPhoneNumber(
-        phoneNumber: phone,
-        verificationCompleted: (PhoneAuthCredential? credential) async {
-          print("YOOYOY: $credential");
-          auth.signInWithCredential(credential!).then((user) async {
-            print("This is the credential: $credential");
-
-            await firestore
-                .collection('users')
-                .doc(auth.currentUser?.uid)
-                .set({'name': name, 'phone': phone}, SetOptions(merge: true))
-                .then((value) => {
-                      Utilities.openActivity(
-                          context,
-                          EnterPhoneOTP(
-                            verificationCode: verificationCode,
-                          )),
-                    })
-                .catchError((onError) {
-                  debugPrint("Error saving user: ${onError.toString()}");
-                });
-          });
-        },
-        verificationFailed: (FirebaseAuthException error) {
-          debugPrint("Error saving user: ${error.message}");
-          if (error.code == 'invalid-phone-number') {
-            print('The provided phone number is not valid.');
-          }
-
-          // Handle other errors
-        },
-        codeSent: (String verificationId, int? resendToken) async {
-          print("YOOYOY verification ID: $verificationId");
-
-          verificationCode = verificationId;
-
-          Utilities.openActivity(
-              context,
-              EnterPhoneOTP(
-                verificationCode: verificationCode,
-              ));
-        },
-        codeAutoRetrievalTimeout: (String verificationId) {
-          verificationCode = verificationId;
-        },
-        timeout: Duration(seconds: 60));
-
-    await verifyPhonenumber;
-  }
+  Future<void> signInUser() async {}
 
   clearController() {
-    phoneController.clear();
+    otpController.clear();
   }
 }
